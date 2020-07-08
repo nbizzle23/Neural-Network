@@ -1,0 +1,273 @@
+---
+title: "Neural Network on PER"
+author: "Nicholas Burke"
+date: "06 December 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Introduction
+This project will use the computer program R will construct a neural network to analyse which factors go into player efficiency rating.  Referred to as PER, is the sum of all of a player's positive accomplishments and subtracts the negative accomplishments, and returns a per-minute rating of a player's performance. A neural network is a set of connected input and output units in which each connection has a weight associated with it. In this case the inputs are as follows 
+
+•	Minutes Played         
+
+•	True Shooting Percentage 
+
+•	3 pointer Rate     
+
+•	 Free throw Rate
+
+
+•	Offensive/ Defensive and Total Rebounding Percentage 
+
+•	Assist Percentage
+
+•	 Steal Percentage
+
+•	 Block Percentage 
+
+•	Turnover Percentage
+
+•	Usage Percentage 
+
+•	Offensive/Defensive and Total  Win Shares
+
+•	 Win Shares Per 48     
+
+•	Offensive/ Defensive Rebounds Per Minute
+
+•	Blocks Per Minute       
+
+•	Value Over Replacement         
+
+With the only output being
+
+•	Player Efficiency Rating
+
+During the construction of a neural network, the learning phase it adjusts the weights of each input to predict the correct class label of the given inputs. The basic structure of a neural networks consists on an input layer, any number of hidden layers, and an output layer.
+
+The information processing units do not work in a linear manner. In fact, neural network draws its strength from parallel processing of information, which allows it to deal with non-linearity.
+
+The formula for the linear weights using more traditional statistics for PER is as follows
+
+[ (FGM x 85.910) + (Steals x 53.897)  + (3PTM x 51.757) + (FTM x 46.845) + (Blocks x 39.190) + (Offensive_Reb x 39.190) + (Assists x 34.677) + (Defensive_Reb x 14.707) - (Foul x 17.174) - (FT_Miss x 20.091) - (FG_Miss x 39.190) - (TO x 53.897) ] x (1 / Minutes).
+
+The goal of this project is to predict the PER using the advance statistics of all the players during the 2018-19 NBA season.
+
+## NBA Statistics in R
+
+```{r}
+library(ballr) 
+```
+
+This will allow for us to be able to access current and historical basketball data in our console.
+For the main package ‘ballr’ to work these libraries need to been then called. 
+
+```{r}
+library (magrittr) 
+library (ggplot2)
+library (janitor) 
+library (scales) 
+
+```
+
+Now that we have called all of the necessary dependencies. We can now view NBA statistics in R. 
+
+Let’s call the advanced statistics for the following season
+
+
+```{r}
+adv_stats<- NBAPerGameAdvStatistics(season = 2019)
+head(adv_stats)
+
+```
+
+Now let’s examine the structure of the data frame.
+
+```{r}
+str(adv_stats)
+```
+Here is the summary of the data set
+
+```{r}
+summary(adv_stats)
+```
+
+Now let’s use only the numerical columns and remove the unnecessary ones
+
+```{r}
+adv_stats2<-na.omit(adv_stats[,c(-1,-2,-3,-4,-5,-6,-20,-25,-30)])
+head(adv_stats2)
+```
+
+## Training the Model
+
+Now we will begin to train the neural network model firstly we will normalize the data before training a neural network. We will scales the values within the intervals [0,1] to generate better results. 
+
+
+```{r}
+maxs <- apply(adv_stats2,2,max)
+maxs
+
+```
+
+```{r}
+mins <- apply(adv_stats2,2,min)
+mins
+```
+
+
+```{r}
+scaled <- as.data.frame(scale(adv_stats2, center = mins, scale = maxs - mins))
+```
+Here is the scaled new data frame and its first 6 entries
+```{r}
+head(scaled)
+```
+
+## Train and Test Sets
+
+Now with that the data has been standardized data we can split it into testing and training sets
+
+
+```{r}
+library(caTools)
+advsplit = sample.split(scaled$per, SplitRatio = 0.70)
+advtrain = subset(scaled, advsplit == TRUE)
+advtest = subset(scaled, advsplit == FALSE)
+
+```
+
+
+## Training the Model
+
+```{r}
+library(neuralnet)
+n <- names(advtrain)
+n
+```
+
+
+```{r}
+f <- as.formula(paste("per ~", paste(n[!n %in% "per"], collapse = " + ")))
+f
+
+```
+
+## Neural Net Visualization 
+
+Now we can create a model with each connection having a weighted value.
+
+```{r}
+nn <- neuralnet(f,data=advtrain,linear.output=TRUE)
+```
+
+Now can plot out the neural network
+
+```{r}
+plot(nn)
+```
+
+
+
+The black lines indicate the connections between each layer and the weights on each connection while the blue lines show the bias term added in each step. Neural nets are essentially a black box so thus there isn’t much to infer about the fitting, the weights and the model values. As defined before we can see which statistical categories have a negative or positive effect on PER.
+
+Positive Values
+
+•	Minutes Played         
+ 
+•	True Shooting Percentage 
+
+•	3 pointer Rate     
+
+•	 Free throw Rate
+
+•	Offensive/ Defensive Percentage 
+
+•	Assist Percentage
+
+•	Turnover Percentage
+
+•	Offensive Win Shares
+
+•	 Win Shares Per 48     
+
+•	Offensive Rebounds Per Minute
+
+•	Value Over Replacement         
+
+Negative Values
+
+•	Total Rebounding Percentage 
+
+•	Steal Percentage
+
+•	 Block Percentage 
+
+•	Usage Percentage 
+
+•	Defensive and Total  Win Shares
+
+•	Defensive Rebounds Per Minute
+
+•	Blocks Per Minute       
+
+
+Not necessarily the best indicators on what to value but clearly there is more importance on offensive categories rather than defensive categories when it comes to PER.
+The training algorithm has converged and therefore this model can be used to predict Player Efficiency Rating.
+Predictions using the Model
+
+Now we can try to predict the values for the test set and calculate the MSE.  Need to scale back the values in order to make a meaningful comparison.
+
+## Predictions using the Model
+
+Now we can try to predict the values for the test set and calculate the MSE.  Need to scale back the values in order to make a meaningful comparison.
+
+```{r}
+predicted.nn.values <- compute(nn,advtest[1:20])
+```
+
+Here is the list of the structure of the values
+
+```{r}
+str(predicted.nn.values)
+```
+
+Now we can convert to non-scaled predictions values
+
+
+```{r}
+true.predictions <- predicted.nn.values$net.result*(max(scaled$per)-min(scaled$per))+min(scaled$per)
+```
+
+Also can convert the test data.
+
+```{r}
+advtest.r <- (advtest$per)*(max(scaled$per)-min(scaled$per))+min(scaled$per)
+
+```
+
+
+```{r}
+MSE.nn <- sum((advtest.r - true.predictions)^2)/nrow(advtest)
+MSE.nn
+```
+
+Now let’s visualize the error in our plot
+
+```{r}
+error.df <- data.frame(advtest.r,true.predictions)
+head(error.df)
+
+```
+
+
+```{r}
+ggplot(error.df,aes(x=advtest.r,y=true.predictions)) + geom_point() + stat_smooth()
+```
+
+Now we can use data from any season or team specific to predicted and classify PER.
+
