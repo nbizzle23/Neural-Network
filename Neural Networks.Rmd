@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ## Introduction
@@ -53,15 +53,11 @@ The information processing units do not work in a linear manner. In fact, neural
 
 The formula for the linear weights using more traditional statistics for PER is as follows
 
-[ (FGM x 85.910) + (Steals x 53.897)  + (3PTM x 51.757) + (FTM x 46.845) + (Blocks x 39.190) + (Offensive_Reb x 39.190) + (Assists x 34.677) + (Defensive_Reb x 14.707) - (Foul x 17.174) - (FT_Miss x 20.091) - (FG_Miss x 39.190) - (TO x 53.897) ] x (1 / Minutes).
+**[ (FGM x 85.910) + (Steals x 53.897)  + (3PTM x 51.757) + (FTM x 46.845) + (Blocks x 39.190) + (Offensive_Reb x 39.190) + (Assists x 34.677) + (Defensive_Reb x 14.707) - (Foul x 17.174) - (FT_Miss x 20.091) - (FG_Miss x 39.190) - (TO x 53.897) ] x (1 / Minutes)**.
 
 The goal of this project is to predict the PER using the advance statistics of all the players during the 2018-19 NBA season.
 
 ## NBA Statistics in R
-
-```{r}
-library(ballr) 
-```
 
 This will allow for us to be able to access current and historical basketball data in our console.
 For the main package ‘ballr’ to work these libraries need to been then called. 
@@ -71,6 +67,10 @@ library (magrittr)
 library (ggplot2)
 library (janitor) 
 library (scales) 
+library(neuralnet)
+library(ballr) 
+library(caTools)
+library(knitr)
 
 ```
 
@@ -81,7 +81,7 @@ Let’s call the advanced statistics for the following season
 
 ```{r}
 adv_stats<- NBAPerGameAdvStatistics(season = 2019)
-head(adv_stats)
+kable(head(adv_stats))
 
 ```
 
@@ -100,7 +100,7 @@ Now let’s use only the numerical columns and remove the unnecessary ones
 
 ```{r}
 adv_stats2<-na.omit(adv_stats[,c(-1,-2,-3,-4,-5,-6,-20,-25,-30)])
-head(adv_stats2)
+kable(head(adv_stats2))
 ```
 
 ## Training the Model
@@ -125,7 +125,7 @@ scaled <- as.data.frame(scale(adv_stats2, center = mins, scale = maxs - mins))
 ```
 Here is the scaled new data frame and its first 6 entries
 ```{r}
-head(scaled)
+kable(head(scaled))
 ```
 
 ## Train and Test Sets
@@ -134,7 +134,6 @@ Now with that the data has been standardized data we can split it into testing a
 
 
 ```{r}
-library(caTools)
 advsplit = sample.split(scaled$per, SplitRatio = 0.70)
 advtrain = subset(scaled, advsplit == TRUE)
 advtest = subset(scaled, advsplit == FALSE)
@@ -145,7 +144,6 @@ advtest = subset(scaled, advsplit == FALSE)
 ## Training the Model
 
 ```{r}
-library(neuralnet)
 n <- names(advtrain)
 n
 ```
