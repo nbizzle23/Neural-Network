@@ -10,7 +10,9 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 ```
 
 ## Introduction
-This project will use the computer program R will construct a neural network to analyse which factors go into player efficiency rating.  Referred to as PER, is the sum of all of a player's positive accomplishments and subtracts the negative accomplishments, and returns a per-minute rating of a player's performance. A neural network is a set of connected input and output units in which each connection has a weight associated with it. In this case the inputs are as follows 
+This project we will construct a neural network to analyse which factors go into player efficiency rating.  Referred to as PER, is the sum of all of a player's positive accomplishments and subtracts the negative accomplishments, and returns a per-minute rating of a player's performance. A neural network is a set of connected input and output units in which each connection has a weight associated with it. 
+
+Using advanced player metrics, the inputs to be used are as follows 
 
 •	Minutes Played         
 
@@ -19,7 +21,6 @@ This project will use the computer program R will construct a neural network to 
 •	3 pointer Rate     
 
 •	 Free throw Rate
-
 
 •	Offensive/ Defensive and Total Rebounding Percentage 
 
@@ -43,7 +44,7 @@ This project will use the computer program R will construct a neural network to 
 
 •	Value Over Replacement         
 
-With the only output being
+Our only output is the following
 
 •	Player Efficiency Rating
 
@@ -55,14 +56,14 @@ The formula for the linear weights using more traditional statistics for PER is 
 
 **[ (FGM x 85.910) + (Steals x 53.897)  + (3PTM x 51.757) + (FTM x 46.845) + (Blocks x 39.190) + (Offensive_Reb x 39.190) + (Assists x 34.677) + (Defensive_Reb x 14.707) - (Foul x 17.174) - (FT_Miss x 20.091) - (FG_Miss x 39.190) - (TO x 53.897) ] x (1 / Minutes)**.
 
-The goal of this project is to predict the PER using the advance statistics of all the players during the 2018-19 NBA season.
+The goal of this project is to predict the PER using the advanced player metrics of all the players during the 2018-19 NBA season.
 
 ## NBA Statistics in R
 
-This will allow for us to be able to access current and historical basketball data in our console.
-For the main package ‘ballr’ to work these libraries need to been then called. 
+Using the ballr package in R, we will be able to extract advanced player metric data from [basketballreference.com](https://www.basketball-reference.com/) directly into the console.
 
 ```{r}
+library(dplyr)
 library (magrittr) 
 library (ggplot2)
 library (janitor) 
@@ -71,12 +72,10 @@ library(neuralnet)
 library(ballr) 
 library(caTools)
 library(knitr)
-
+library(devtools)
 ```
 
-Now that we have called all of the necessary dependencies. We can now view NBA statistics in R. 
-
-Let’s call the advanced statistics for the following season
+Let’s view the advanced player metrics from the 2018-2019 NBA regular season
 
 
 ```{r}
@@ -90,30 +89,67 @@ Now let’s examine the structure of the data frame.
 ```{r}
 str(adv_stats)
 ```
+We will omit the following columns from our analysis for they do not provide any extra value 
+
+• rk
+
+• player
+
+• pos
+
+• age
+
+• tm
+
+• g
+
+• x
+
+• x_2
+
+• link
+
 Here is the summary of the data set
 
 ```{r}
-summary(adv_stats)
+kable(summary(adv_stats))
 ```
 
-Now let’s use only the numerical columns and remove the unnecessary ones
+We will now create a data frame with only columns with numerical values.
 
 ```{r}
-adv_stats2<-na.omit(adv_stats[,c(-1,-2,-3,-4,-5,-6,-20,-25,-30)])
+adv_stats2<-adv_stats %>%
+  select(mp,per,tspercent,x3par,ftr,orbpercent, drbpercent, trbpercent, astpercent, stlpercent, blkpercent, tovpercent, usgpercent, ows, dws, ws, ws_48, obpm, dbpm, bpm, vorp )
+adv_stats2 <- na.omit(adv_stats2)
 kable(head(adv_stats2))
 ```
 
-## Training the Model
+## Fitting the Neural Network
 
-Now we will begin to train the neural network model firstly we will normalize the data before training a neural network. We will scales the values within the intervals [0,1] to generate better results. 
+The objective of our neural network is to predict PER based on advanced metrics as our dependent variables. We will divide the data into training and test set. Training set is used to find the relationship between dependent and our independent variable, PER while the test set assesses the performance of the model. Using 60% of the data set as training set. The assignment of the data to training and test set is done using random sampling, using the index variable while fitting neural network to create training and test data sets. 
+
+```{r}
+samplesize = 0.60 * nrow(adv_stats2)
+set.seed(80)
+index = sample( seq_len ( nrow ( adv_stats2 ) ), size = samplesize )
+datatrain = adv_stats2[ index, ]
+datatest = adv_stats2[ -index, ]
+
+```
 
 
+We will fit a neural network on our data using the neuralnet library. The first step is to scale our data set. The scaling of data is essential because otherwise a variable may have large impact on the prediction variable only because of its scale which otherwise could lead to meaningless results. We will use min-max normalization to scale our data. 
+
+
+Below are the maximum values of our data set
 ```{r}
 maxs <- apply(adv_stats2,2,max)
 maxs
 
 ```
 
+
+Below are the minimum values of our data set
 ```{r}
 mins <- apply(adv_stats2,2,min)
 mins
@@ -123,50 +159,52 @@ mins
 ```{r}
 scaled <- as.data.frame(scale(adv_stats2, center = mins, scale = maxs - mins))
 ```
-Here is the scaled new data frame and its first 6 entries
+
+Here are the first 6 entries of our new scaled data frame 
 ```{r}
 kable(head(scaled))
 ```
 
-## Train and Test Sets
+## Neural Net Visualization 
 
-Now with that the data has been standardized data we can split it into testing and training sets
+The scaled data is used to fit the neural network. We visualize the neural network with weights for each of the variable.
 
 
 ```{r}
-advsplit = sample.split(scaled$per, SplitRatio = 0.70)
-advtrain = subset(scaled, advsplit == TRUE)
-advtest = subset(scaled, advsplit == FALSE)
 
+# creating training and test set
+trainNN = scaled[index , ]
+testNN = scaled[-index , ]
 ```
 
-
-## Training the Model
 
 ```{r}
-n <- names(advtrain)
-n
+n <- names(trainNN)
 ```
 
-
+The formula used for the construction of the neural network is as follows
 ```{r}
 f <- as.formula(paste("per ~", paste(n[!n %in% "per"], collapse = " + ")))
 f
 
 ```
 
-## Neural Net Visualization 
 
 Now we can create a model with each connection having a weighted value.
 
 ```{r}
-nn <- neuralnet(f,data=advtrain,linear.output=TRUE)
+NN= neuralnet(f, trainNN, hidden = 3, linear.output = TRUE)
 ```
 
 Now can plot out the neural network
 
 ```{r}
-plot(nn)
+plot(NN, rep="best")
+
+
+source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
+
+plot.nnet(NN,struct=struct, rep="best")
 ```
 
 
@@ -225,7 +263,7 @@ Now we can try to predict the values for the test set and calculate the MSE.  Ne
 Now we can try to predict the values for the test set and calculate the MSE.  Need to scale back the values in order to make a meaningful comparison.
 
 ```{r}
-predicted.nn.values <- compute(nn,advtest[1:20])
+predicted.nn.values <- compute(NN,testNN[1:20])
 ```
 
 Here is the list of the structure of the values
@@ -244,17 +282,34 @@ true.predictions <- predicted.nn.values$net.result*(max(scaled$per)-min(scaled$p
 Also can convert the test data.
 
 ```{r}
-advtest.r <- (advtest$per)*(max(scaled$per)-min(scaled$per))+min(scaled$per)
+advtest.r <- (testNN$per)*(max(scaled$per)-min(scaled$per))+min(scaled$per)
 
 ```
 
 
 ```{r}
-MSE.nn <- sum((advtest.r - true.predictions)^2)/nrow(advtest)
+MSE.nn <- sum((advtest.r - true.predictions)^2)/nrow(testNN)
 MSE.nn
 ```
 
-Now let’s visualize the error in our plot
+
+```{r}
+predict_testNN = compute(NN, testNN[,c(1:20)])
+predict_testNN = (predict_testNN$net.result * (max(adv_stats2$per) - min(adv_stats2$per))) + min(adv_stats2$per)
+
+ggplot(datatest,aes(datatest$per, predict_testNN) )+ 
+  geom_point(colour='blue', size=3) + 
+  geom_smooth(method="lm", se=F, color='black')+
+  labs(y = "predicted PER NN", 
+       x = "real PER",
+       title = "Predictions",
+       caption = "Predicted PER vs. real PER using neural network")
+
+```
+
+
+
+Now let’s visualize the error in our plot in this data frame
 
 ```{r}
 error.df <- data.frame(advtest.r,true.predictions)
