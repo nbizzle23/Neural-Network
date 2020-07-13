@@ -126,7 +126,7 @@ kable(head(adv_stats2))
 
 ## Fitting the Neural Network
 
-The objective of our neural network is to predict PER based on advanced metrics as our dependent variables. We will divide the data into training and test set. Training set is used to find the relationship between dependent and our independent variable, PER while the test set assesses the performance of the model. Using 60% of the data set as training set. The assignment of the data to training and test set is done using random sampling, using the index variable while fitting neural network to create training and test data sets. 
+The objective of our neural network is to predict PER based on advanced metrics as our dependent variables. We will divide the data into training and test sets. The training set is used to find the relationship between dependent and our independent variable, PER, while the test set assesses the performance of the model. We will use 60% of the data set as training set. The assignment of the data to training and test set is done using random sampling, while also using the index variable while fitting neural network to create training and test data sets. 
 
 ```{r}
 samplesize = 0.60 * nrow(adv_stats2)
@@ -138,7 +138,7 @@ datatest = adv_stats2[ -index, ]
 ```
 
 
-We will fit a neural network on our data using the neuralnet library. The first step is to scale our data set. The scaling of data is essential because otherwise a variable may have large impact on the prediction variable only because of its scale which otherwise could lead to meaningless results. We will use min-max normalization to scale our data. 
+We will fit a neural network on our data using the neuralnet library. The first step is to scale our data set, this is essential because otherwise a variable may have large impact on the prediction variable leading to meaningless results. We will use min-max normalization in order to scale our data. 
 
 
 Below are the maximum values of our data set
@@ -190,31 +190,37 @@ f
 ```
 
 
-Now we can create a model with each connection having a weighted value.
+Now we can plot out the neural network as follows
 
 ```{r}
 NN= neuralnet(f, trainNN, hidden = 3, linear.output = TRUE)
 ```
 
-Now can plot out the neural network
+The black lines indicate the connections between each layer and the weights on each connection while the blue lines show the bias term added in each step. Neural nets are essentially a black box so thus there isn’t much to infer about the fitting, the weights and the model values. As defined before we can see which statistical categories have a negative or positive effect on PER.
+
 
 ```{r}
 plot(NN, rep="best")
 
+```
 
+
+Here is another plot of the same neural network
+
+```{r}
 source_url('https://gist.githubusercontent.com/fawda123/7471137/raw/466c1474d0a505ff044412703516c34f1a4684a5/nnet_plot_update.r')
 
 plot.nnet(NN,struct=struct, rep="best")
 ```
 
+In this plot, the inputs are labelled as $I_{n}$, the bias terms as $B_{n}$, the hidden layers as $H_{n}$ and the output as $O_{1}$. The black lines indicate a positive values in the weight of the connection, the grey lines indicate a negative value.
 
 
-The black lines indicate the connections between each layer and the weights on each connection while the blue lines show the bias term added in each step. Neural nets are essentially a black box so thus there isn’t much to infer about the fitting, the weights and the model values. As defined before we can see which statistical categories have a negative or positive effect on PER.
 
-Positive Values
+Here is a list  of the positive inputs of our neural network
 
 •	Minutes Played         
- 
+ .
 •	True Shooting Percentage 
 
 •	3 pointer Rate     
@@ -235,7 +241,7 @@ Positive Values
 
 •	Value Over Replacement         
 
-Negative Values
+Here is a list  of the negative inputs of our neural network
 
 •	Total Rebounding Percentage 
 
@@ -253,10 +259,9 @@ Negative Values
 
 
 Not necessarily the best indicators on what to value but clearly there is more importance on offensive categories rather than defensive categories when it comes to PER.
-The training algorithm has converged and therefore this model can be used to predict Player Efficiency Rating.
-Predictions using the Model
 
-Now we can try to predict the values for the test set and calculate the MSE.  Need to scale back the values in order to make a meaningful comparison.
+The training algorithm has converged and therefore this model can be used to predict Player Efficiency Rating.
+
 
 ## Predictions using the Model
 
@@ -272,14 +277,13 @@ Here is the list of the structure of the values
 str(predicted.nn.values)
 ```
 
-Now we can convert to non-scaled predictions values
 
 
 ```{r}
+#Convert to non-scaled predictions
 true.predictions <- predicted.nn.values$net.result*(max(scaled$per)-min(scaled$per))+min(scaled$per)
 ```
 
-Also can convert the test data.
 
 ```{r}
 advtest.r <- (testNN$per)*(max(scaled$per)-min(scaled$per))+min(scaled$per)
@@ -288,10 +292,12 @@ advtest.r <- (testNN$per)*(max(scaled$per)-min(scaled$per))+min(scaled$per)
 
 
 ```{r}
+#Mean Square Error
 MSE.nn <- sum((advtest.r - true.predictions)^2)/nrow(testNN)
-MSE.nn
 ```
 
+
+We can compare the predicted rating with real rating using the following visualization
 
 ```{r}
 predict_testNN = compute(NN, testNN[,c(1:20)])

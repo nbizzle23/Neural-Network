@@ -1,5 +1,5 @@
 # Neural-Network
- Constructing a [neural network](https://rpubs.com/nburke2/622993) to analyse which factors go into PER
+ Constructing a [neural network](https://rpubs.com/nburke2/638748) to analyse which factors go into PER
  
 ## Getting Started
 
@@ -20,6 +20,8 @@ install.packages(ggplot2)
 install.packages(ggthemes)
 install.packages(caTools)
 install.packages(knitr)
+install.packages(devtools)
+
 ```
 
 ### Installing
@@ -36,6 +38,7 @@ library(ggplot2)
 library(ggthemes)
 library(caTools)
 library(knitr)
+library(devtools)
 ```
 
 
